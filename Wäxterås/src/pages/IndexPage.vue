@@ -27,11 +27,10 @@
             v-model="selectedDate"
             :options="availableDates"
             label="Select Date"
-            onselect=""
 
           />
-          <q-btn @click="showHistoricalGraphs" color="secondary" class="q-mt-md">
-            Show Historical Events
+          <q-btn  @click="showHistoricalGraphs" color="secondary" class="q-mt-md">
+            {{isHistoricalGraphMode ?  "Exit" : "Show Historical Graphs"}}
           </q-btn>
         </div>
 
@@ -141,7 +140,7 @@ export default {
         markers: {
           size: 5,
         },
-
+      isHistoricalGraphMode: false,
       isControlMode: false,
       temperatureIsControlled : true,
       humidityIsControlled: true,
@@ -165,52 +164,116 @@ export default {
     },
   },
   methods: {
+    fetchHistoricalData() {
+      const an_array = [];
+      const longTermInfo = ref(this.database, "long-term-info");
+      onValue(
+        longTermInfo,
+        (snapshot) => {
+          const data = snapshot.val();
+          for(const month in data) {
+            onValue(
+              ref(this.database, "long-term-info/" + month),
+              (snapshot) => {
+                const fetchedDay = snapshot.val();
+                for (const day in fetchedDay) {
+                  an_array.push(month + "/" + day)
+                }
+              }
+            )
+          }
+
+        }
+      )
+      this.availableDates = an_array;
+    },
+
+
+    fetchSensorData() {
+      const sensorRef = ref(this.database, "environment");
+      onValue(
+        sensorRef,
+        (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            this.sensorData = {
+              temperature: data.temperature || "N/A",
+              humidity: data.humidity || "N/A",
+            };
+
+            if (data.temperature !== undefined) {
+              this.temperatureData.push(data.temperature);
+              if (this.temperatureData.length > 10) this.temperatureData.shift();
+            }
+
+            if (data.humidity !== undefined) {
+              this.humidityData.push(data.humidity);
+              if (this.humidityData.length > 10) this.humidityData.shift();
+            }
+          }
+        },
+        (error) => {
+          console.error("Failed to fetch sensor data:", error);
+        }
+      );
+    },
     showHistoricalGraphs() {
-  if (!this.selectedDate) {
-    console.log("No date selected.");
-    return;
-  }
+      //toggeling the shoot out of it
+      this.isHistoricalGraphMode = !this.isHistoricalGraphMode;
 
-  const [month, day] = this.selectedDate.split("/");
-  const dataPath = `long-term-info/${month}/${day}`;
+      if (this.isHistoricalGraphMode == true) {
+          if (!this.selectedDate) {
+          console.log("No date selected.");
+          return;
+        }
 
-  const temperatureArray = [];
-  const humidityArray = [];
+        const [month, day] = this.selectedDate.split("/");
+        const dataPath = `long-term-info/${month}/${day}`;
 
-  const dayRef = ref(this.database, dataPath);
+        const temperatureArray = [];
+        const humidityArray = [];
 
-  onValue(dayRef, (snapshot) => {
-    const hourlyData = snapshot.val();
-    if (hourlyData) {
-      Object.keys(hourlyData).forEach((hour) => {
-        const temp = hourlyData[hour]?.temp || null;
-        const hum = hourlyData[hour]?.hum || null;
+        const dayRef = ref(this.database, dataPath);
 
-        if (temp !== null) temperatureArray.push(temp);
-        if (hum !== null) humidityArray.push(hum);
-      });
+        onValue(dayRef, (snapshot) => {
+          const hourlyData = snapshot.val();
+          if (hourlyData) {
+            Object.keys(hourlyData).forEach((hour) => {
+              const temp = hourlyData[hour]?.temp || null;
+              const hum = hourlyData[hour]?.hum || null;
 
-      this.temperatureChartSeries = [
-        {
-          name: "Temperature",
-          data: temperatureArray,
-        },
-      ];
-      this.humidityChartSeries = [
-        {
-          name: "Humidity",
-          data: humidityArray,
-        },
-      ];
+              if (temp !== null) temperatureArray.push(temp);
+              if (hum !== null) humidityArray.push(hum);
+            });
 
-      this.historicalGraphsVisible = true;
+            this.temperatureChartSeries = [
+              {
+                name: "Temperature",
+                data: temperatureArray,
+              },
+            ];
+            this.humidityChartSeries = [
+              {
+                name: "Humidity",
+                data: humidityArray,
+              },
+            ];
 
-      console.log("Temperature Array: " + temperatureArray);
-      console.log("Humidity Array: " + humidityArray);
-    } else {
-      console.log("No data available for the selected date.");
+            this.historicalGraphsVisible = true;
+
+            console.log("Temperature Array: " + temperatureArray);
+            console.log("Humidity Array: " + humidityArray);
+          } else {
+            console.log("No data available for the selected date.");
+          }
+        });}
+
+      else {
+        this.historicalGraphsVisible = false;
+      }
     }
-  });
+
+
 },
 
     toggleChart() {
@@ -288,60 +351,8 @@ export default {
       });
     },
 
-    fetchHistoricalData() {
-      const an_array = [];
-      const longTermInfo = ref(this.database, "long-term-info");
-      onValue(
-        longTermInfo,
-        (snapshot) => {
-          const data = snapshot.val();
-          for(const month in data) {
-            onValue(
-              ref(this.database, "long-term-info/" + month),
-              (snapshot) => {
-                const fetchedDay = snapshot.val();
-                for (const day in fetchedDay) {
-                  an_array.push(month + "/" + day)
-                }
-              }
-            )
-          }
-
-        }
-      )
-      this.availableDates = an_array;
-    },
 
 
-    fetchSensorData() {
-      const sensorRef = ref(this.database, "environment");
-      onValue(
-        sensorRef,
-        (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-            this.sensorData = {
-              temperature: data.temperature || "N/A",
-              humidity: data.humidity || "N/A",
-            };
-
-            if (data.temperature !== undefined) {
-              this.temperatureData.push(data.temperature);
-              if (this.temperatureData.length > 10) this.temperatureData.shift();
-            }
-
-            if (data.humidity !== undefined) {
-              this.humidityData.push(data.humidity);
-              if (this.humidityData.length > 10) this.humidityData.shift();
-            }
-          }
-        },
-        (error) => {
-          console.error("Failed to fetch sensor data:", error);
-        }
-      );
-    },
-  },
   mounted() {
     const firebaseConfig = {
       apiKey: "AIzaSyD6O7hQ2SUBCajbVClFEMH5fzXKfrRH0Z0",
