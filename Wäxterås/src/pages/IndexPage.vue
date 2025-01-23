@@ -27,14 +27,12 @@
 
         <div class="historical-data">
           <q-select
-
             v-model="selectedDate"
             :options="availableDates"
             label="Select Date"
-
           />
-          <q-btn  @click="showHistoricalGraphs" color="secondary" class="q-mt-md">
-            {{isHistoricalGraphMode ?  "Exit" : "Show Historical Graphs"}}
+          <q-btn @click="showHistoricalGraphs" color="secondary" class="q-mt-md">
+            {{ isHistoricalGraphMode ? "Exit" : "Show Historical Graphs" }}
           </q-btn>
         </div>
 
@@ -55,19 +53,26 @@
       </div>
     </div>
 
+    <div v-if="isControlMode">
+      <div class="chart-container">
+        <q-btn @click="toggleChart" size="sm" color="primary">
+          Show {{ isTemperatureChart ? "Humidity" : "Temperature" }} Data
+        </q-btn>
+
+        <apexchart
+          type="line"
+          :options="chartOptions"
+          :series="chartSeries"
+          class="sensor-chart"
+        />
+      </div>
+    </div>
+
     <q-btn @click="toggleControlMode" size="sm" color="accent">
       {{ isControlMode ? "Exit Control Mode" : "Control" }}
     </q-btn>
   </q-page>
 </template>
-
-
-
-
-
-
-
-
 
 <script>
 import { initializeApp, getApps } from 'firebase/app';
@@ -80,14 +85,17 @@ export default {
   },
   data() {
     return {
+      targetTemperature: 26,
+      targetHumidity: 30,
       servoAngle: 0,
       motorSpeed: 0,
-      pumpSpeed:0,
+      pumpSpeed: 0,
       motorDirection: false,
       sensorData: {
         temperature: null,
         humidity: null,
       },
+
       temperatureData: Array(10).fill(26),
       humidityData: Array(10).fill(30),
       isTemperatureChart: true,
@@ -97,43 +105,67 @@ export default {
       historicalGraphsVisible: false,
       temperatureChartSeries: [],
       humidityChartSeries: [],
-      chartOptions: {
-        chart: {
-          id: "sensor-data",
-          animations: {
-            enabled: true,
-            easing: "easeinout",
-            speed: 800,
-          },
-        },
-        xaxis: {
-          categories: Array.from({ length: 10 }, (_, i) => i + 1),
-        },
-        yaxis: {
-          title: { text: "Value" },
-        },
-        markers: {
-          size: 5,
-        },
-      },
       isHistoricalGraphMode: false,
       isControlMode: false,
       temperatureIsControlled: true,
       humidityIsControlled: true,
-      targetTemperature: 26,
-      targetHumidity: 30,
       pidInterval: null,
       tempErrorSum: 0,
       tempLastError: 0,
       humidityErrorSum: 0,
       humidityLastError: 0,
-      //My good sir, The settings for the pump starts from here:
-      humidityErrorSumForPump : 0,
-      humidityLastErrorForPump : 0,
-
+      humidityErrorSumForPump: 0,
+      humidityLastErrorForPump: 0,
     };
   },
   computed: {
+      chartOptions() {
+    return {
+      chart: {
+        id: "sensor-data",
+        animations: {
+          enabled: true,
+          easing: "easeinout",
+          speed: 800,
+        },
+      },
+      xaxis: {
+        categories: Array.from({ length: 10 }, (_, i) => i + 1),
+      },
+      yaxis: {
+        title: { text: "Value" },
+      },
+      markers: {
+        size: 5,
+      },
+      annotations: {
+        yaxis: [
+          {
+            y: this.targetHumidity,
+            borderColor: '#FF0000',
+            label: {
+              text: `Setpoint: ${this.targetHumidity}°C`,
+              style: {
+                color: '#FF0000',
+                background: '#ffffff',
+              },
+            },
+          },
+          {
+            y: this.targetTemperature,
+            borderColor: '#00FF00',
+            label: {
+              text: `Setpoint: ${this.targetTemperature}°C`,
+              style: {
+                color: '#00FF00',
+                background: '#ffffff',
+              },
+            },
+          },
+        ],
+      },
+    };
+  },
     chartSeries() {
       return [
         {
@@ -162,32 +194,58 @@ export default {
     },
     fetchSensorData() {
       const sensorRef = ref(this.database, "environment");
-      onValue(
-        sensorRef,
-        (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-            this.sensorData = {
-              temperature: data.temperature || "N/A",
-              humidity: data.humidity || "N/A",
-            };
-            if (data.temperature !== undefined) {
-              this.temperatureData.push(data.temperature);
-              if (this.temperatureData.length > 10) this.temperatureData.shift();
-            }
-            if (data.humidity !== undefined) {
-              this.humidityData.push(data.humidity);
-              if (this.humidityData.length > 10) this.humidityData.shift();
-            }
+      onValue(sensorRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          this.sensorData = {
+            temperature: data.temperature || "N/A",
+            humidity: data.humidity || "N/A",
+          };
+
+          if (this.sensorData.temperature !== null) {
+            this.temperatureData.push(this.sensorData.temperature);
+            if (this.temperatureData.length > 10) this.temperatureData.shift();
           }
-        },
-        (error) => {
-          console.error("Failed to fetch sensor data:", error);
+
+          if (this.sensorData.humidity !== null) {
+            this.humidityData.push(this.sensorData.humidity);
+            if (this.humidityData.length > 10) this.humidityData.shift();
+          }
+
+          this.updateChartSeries();
         }
-      );
+      }, (error) => {
+        console.error("Failed to fetch sensor data:", error);
+      });
     },
     toggleChart() {
       this.isTemperatureChart = !this.isTemperatureChart;
+      this.updateChartSeries();
+    },
+    updateChartSeries() {
+      if (this.isTemperatureChart) {
+        this.chartSeries = [
+          {
+            name: "Temperature",
+            data: this.temperatureData,
+          },
+          {
+            name: "Setpoint Temperature",
+            data: Array(this.temperatureData.length).fill(this.targetTemperature),
+          },
+        ];
+      } else {
+        this.chartSeries = [
+          {
+            name: "Humidity",
+            data: this.humidityData,
+          },
+          {
+            name: "Setpoint Humidity",
+            data: Array(this.humidityData.length).fill(this.targetHumidity),
+          },
+        ];
+      }
     },
     toggleControlMode() {
       this.isControlMode = !this.isControlMode;
@@ -207,6 +265,7 @@ export default {
       this.pidInterval = null;
     },
     performPIDControl() {
+      //Hita anledning till: Varför är det så jäckla trög?
       const tempKp = 100;
       const tempKi = 10;
       const tempKd = 1;
@@ -368,7 +427,7 @@ export default {
     this.database = getDatabase(app);
     this.fetchHistoricalData();
     this.fetchSensorData();
-    setInterval(this.fetchHistoricalData, 5000);
+    setInterval(this.fetchHistoricalData, 600000);
     setInterval(this.fetchSensorData, 5000);
   },
 };
