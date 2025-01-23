@@ -267,7 +267,7 @@ export default {
       if (this.sensorData.humidity < this.targetHumidity) {
         if (this.temperatureIsControlled == true) {
 
-          this.pumpSpeed= Math.round(Math.min(Math.max(0, pumpControlSignal), 3000));
+          this.pumpSpeed= Math.round(Math.min(Math.max(300, pumpControlSignal), 3000));
           this.humidityIsControlled = true;
 
         }
@@ -284,9 +284,10 @@ export default {
 
 
       if (this.sensorData.temperature > this.targetTemperature){
-        return;
+        this.temperatureIsControlled = false;
       }
       else {
+        this.temperatureIsControlled = true;
         if (this.sensorData.humidity > this.targetHumidity) {
           set(ref(this.database, "pump/speed"), 0);
         }
