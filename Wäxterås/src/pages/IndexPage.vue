@@ -3,7 +3,7 @@
     <div v-if="!isControlMode">
       <div class="row">
         <div class="col-6 servo-control">
-          <h5>Testing</h5>
+          <h5>Servo Angle</h5>
           <q-slider v-model="servoAngle" :min="0" :max="90" label @change="updateServoAngle" />
         </div>
         <div class="col-6 motor-control">
