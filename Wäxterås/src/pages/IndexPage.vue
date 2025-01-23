@@ -3,7 +3,7 @@
     <div v-if="!isControlMode">
       <div class="row">
         <div class="col-6 servo-control">
-          <h5>Servo Angle</h5>
+          <h5>Testing</h5>
           <q-slider v-model="servoAngle" :min="0" :max="90" label @change="updateServoAngle" />
         </div>
         <div class="col-6 motor-control">
@@ -27,11 +27,10 @@
             v-model="selectedDate"
             :options="availableDates"
             label="Select Date"
-            onselect=""
 
           />
-          <q-btn @click="showHistoricalGraphs" color="secondary" class="q-mt-md">
-            Show Historical Events
+          <q-btn  @click="showHistoricalGraphs" color="secondary" class="q-mt-md">
+            {{isHistoricalGraphMode ?  "Exit" : "Show Historical Graphs"}}
           </q-btn>
         </div>
 
@@ -66,21 +65,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <script>
 import { initializeApp, getApps } from 'firebase/app';
 import { getDatabase, ref, onValue, set } from 'firebase/database';
@@ -102,7 +86,7 @@ export default {
       temperatureData: Array(10).fill(26),
       humidityData: Array(10).fill(30),
       isTemperatureChart: true,
-      availableDates:[] ,
+      availableDates: [],
       historicalData: [],
       selectedDate: null,
       historicalGraphsVisible: false,
@@ -110,7 +94,6 @@ export default {
       humidityChartSeries: [],
       chartOptions: {
         chart: {
-
           id: "sensor-data",
           animations: {
             enabled: true,
@@ -121,29 +104,16 @@ export default {
         xaxis: {
           categories: Array.from({ length: 10 }, (_, i) => i + 1),
         },
-          id: "historical-data",
-          animations: {
-            enabled: true,
-            easing: "easeinout",
-            speed: 800,
-          },
-          toolbar: {
-            show: false,
-          },
-      },
-        xaxis: {
-          type: "datetime",
-          title: { text: "Date" },
-        },
         yaxis: {
           title: { text: "Value" },
         },
         markers: {
           size: 5,
         },
-
+      },
+      isHistoricalGraphMode: false,
       isControlMode: false,
-      temperatureIsControlled : true,
+      temperatureIsControlled: true,
       humidityIsControlled: true,
       targetTemperature: 26,
       targetHumidity: 30,
@@ -165,58 +135,51 @@ export default {
     },
   },
   methods: {
-    showHistoricalGraphs() {
-  if (!this.selectedDate) {
-    console.log("No date selected.");
-    return;
-  }
-
-  const [month, day] = this.selectedDate.split("/");
-  const dataPath = `long-term-info/${month}/${day}`;
-
-  const temperatureArray = [];
-  const humidityArray = [];
-
-  const dayRef = ref(this.database, dataPath);
-
-  onValue(dayRef, (snapshot) => {
-    const hourlyData = snapshot.val();
-    if (hourlyData) {
-      Object.keys(hourlyData).forEach((hour) => {
-        const temp = hourlyData[hour]?.temp || null;
-        const hum = hourlyData[hour]?.hum || null;
-
-        if (temp !== null) temperatureArray.push(temp);
-        if (hum !== null) humidityArray.push(hum);
+    fetchHistoricalData() {
+      const an_array = [];
+      const longTermInfo = ref(this.database, "long-term-info");
+      onValue(longTermInfo, (snapshot) => {
+        const data = snapshot.val();
+        for (const month in data) {
+          onValue(ref(this.database, "long-term-info/" + month), (snapshot) => {
+            const fetchedDay = snapshot.val();
+            for (const day in fetchedDay) {
+              an_array.push(month + "/" + day);
+            }
+          });
+        }
       });
-
-      this.temperatureChartSeries = [
-        {
-          name: "Temperature",
-          data: temperatureArray,
+      this.availableDates = an_array;
+    },
+    fetchSensorData() {
+      const sensorRef = ref(this.database, "environment");
+      onValue(
+        sensorRef,
+        (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            this.sensorData = {
+              temperature: data.temperature || "N/A",
+              humidity: data.humidity || "N/A",
+            };
+            if (data.temperature !== undefined) {
+              this.temperatureData.push(data.temperature);
+              if (this.temperatureData.length > 10) this.temperatureData.shift();
+            }
+            if (data.humidity !== undefined) {
+              this.humidityData.push(data.humidity);
+              if (this.humidityData.length > 10) this.humidityData.shift();
+            }
+          }
         },
-      ];
-      this.humidityChartSeries = [
-        {
-          name: "Humidity",
-          data: humidityArray,
-        },
-      ];
-
-      this.historicalGraphsVisible = true;
-
-      console.log("Temperature Array: " + temperatureArray);
-      console.log("Humidity Array: " + humidityArray);
-    } else {
-      console.log("No data available for the selected date.");
-    }
-  });
-},
-
+        (error) => {
+          console.error("Failed to fetch sensor data:", error);
+        }
+      );
+    },
     toggleChart() {
       this.isTemperatureChart = !this.isTemperatureChart;
     },
-
     toggleControlMode() {
       this.isControlMode = !this.isControlMode;
       if (this.isControlMode) {
@@ -287,59 +250,48 @@ export default {
         direction: this.motorDirection,
       });
     },
+    showHistoricalGraphs() {
+      this.isHistoricalGraphMode = !this.isHistoricalGraphMode;
 
-    fetchHistoricalData() {
-      const an_array = [];
-      const longTermInfo = ref(this.database, "long-term-info");
-      onValue(
-        longTermInfo,
-        (snapshot) => {
-          const data = snapshot.val();
-          for(const month in data) {
-            onValue(
-              ref(this.database, "long-term-info/" + month),
-              (snapshot) => {
-                const fetchedDay = snapshot.val();
-                for (const day in fetchedDay) {
-                  an_array.push(month + "/" + day)
-                }
-              }
-            )
+      if (this.isHistoricalGraphMode && this.selectedDate) {
+        const [month, day] = this.selectedDate.split("/");
+        const dataPath = `long-term-info/${month}/${day}`;
+        const temperatureArray = [];
+        const humidityArray = [];
+        const dayRef = ref(this.database, dataPath);
+
+        onValue(dayRef, (snapshot) => {
+          const hourlyData = snapshot.val();
+          if (hourlyData) {
+            Object.keys(hourlyData).forEach((hour) => {
+              const temp = hourlyData[hour]?.temp || null;
+              const hum = hourlyData[hour]?.hum || null;
+
+              if (temp !== null) temperatureArray.push(temp);
+              if (hum !== null) humidityArray.push(hum);
+            });
+
+            this.temperatureChartSeries = [
+              {
+                name: "Temperature",
+                data: temperatureArray,
+              },
+            ];
+            this.humidityChartSeries = [
+              {
+                name: "Humidity",
+                data: humidityArray,
+              },
+            ];
+
+            this.historicalGraphsVisible = true;
+          } else {
+            console.log("No data available for the selected date.");
           }
-
-        }
-      )
-      this.availableDates = an_array;
-    },
-
-
-    fetchSensorData() {
-      const sensorRef = ref(this.database, "environment");
-      onValue(
-        sensorRef,
-        (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-            this.sensorData = {
-              temperature: data.temperature || "N/A",
-              humidity: data.humidity || "N/A",
-            };
-
-            if (data.temperature !== undefined) {
-              this.temperatureData.push(data.temperature);
-              if (this.temperatureData.length > 10) this.temperatureData.shift();
-            }
-
-            if (data.humidity !== undefined) {
-              this.humidityData.push(data.humidity);
-              if (this.humidityData.length > 10) this.humidityData.shift();
-            }
-          }
-        },
-        (error) => {
-          console.error("Failed to fetch sensor data:", error);
-        }
-      );
+        });
+      } else {
+        this.historicalGraphsVisible = false;
+      }
     },
   },
   mounted() {
@@ -362,6 +314,21 @@ export default {
   },
 };
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
