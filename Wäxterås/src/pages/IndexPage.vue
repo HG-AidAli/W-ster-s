@@ -4,11 +4,15 @@
       <div class="row">
         <div class="col-6 servo-control">
           <h5>Servo Angle</h5>
-          <q-slider v-model="servoAngle" :min="0" :max="90" label @change="updateServoAngle" />
+          <q-slider v-model="servoAngle" :min="0" :max="90" label="Servo Angle" @change="updateServoAngle" />
         </div>
         <div class="col-6 motor-control">
-          <h5>Motor Control</h5>
+          <h5>Motor Speed</h5>
           <q-slider v-model="motorSpeed" :min="0" :max="3000" label="Motor Speed" @change="updateMotorSettings" />
+        </div>
+        <div class="col-6 pump-control">
+          <h5>Pump Speed</h5>
+          <q-slider v-model="pumpSpeed" :min="0" :max="3000" label="Pump Speed" @change="updatePumpSettings"/>
         </div>
       </div>
       <div class="sensor-data">
@@ -78,6 +82,7 @@ export default {
     return {
       servoAngle: 0,
       motorSpeed: 0,
+      pumpSpeed:0,
       motorDirection: false,
       sensorData: {
         temperature: null,
@@ -122,6 +127,10 @@ export default {
       tempLastError: 0,
       humidityErrorSum: 0,
       humidityLastError: 0,
+      //My good sir, The settings for the pump starts from here:
+      humidityErrorSumForPump : 0,
+      humidityLastErrorForPump : 0,
+
     };
   },
   computed: {
@@ -230,16 +239,61 @@ export default {
       const servoControlSignal = humKp * humidityError + humKi * this.humidityErrorSum + humKd * humidityDeltaError;
       this.humidityLastError = humidityError;
 
+      //PLEASE TUNE THE FREAKING PID CONSTS...
+      const pumpKp = 100;
+      const pumpKi = 10;
+      const pumpKd = 1;
+      const humidityErrorForPump = -(this.sensorData.humidity - humSetPoint);
+      this.humidityErrorSumForPump += humidityErrorForPump;
+      const humidityDeltaErrorForPump = humidityErrorForPump - this.humidityLastErrorForPump;
+      const pumpControlSignal = pumpKp * humidityErrorForPump + pumpKi * this.humidityErrorSumForPump + pumpKd * humidityDeltaErrorForPump;
+
       if (this.sensorData.humidity > this.targetHumidity) {
         if (this.temperatureIsControlled == true) {
           this.humidityIsControlled = false;
           this.servoAngle = Math.round(Math.min(Math.max(0, servoControlSignal), 90));
         }
-      } else {
+      }
+
+      else {
+
         this.humidityIsControlled = true;
         this.servoAngle = 0;
+        this.humidityErrorSum = 0;
       }
+
       set(ref(this.database, "servo/angle"), this.servoAngle);
+
+      if (this.sensorData.humidity < this.targetHumidity) {
+        if (this.temperatureIsControlled == true) {
+
+          this.pumpSpeed= Math.round(Math.min(Math.max(0, pumpControlSignal), 3000));
+          this.humidityIsControlled = true;
+
+        }
+
+        else {
+
+          this.humidityIsControlled = true;
+          this.pumpSpeed = 0;
+
+        }
+
+      }
+      set(ref(this.database, "pump/speed"), this.pumpSpeed);
+
+
+      if (this.sensorData.temperature > this.targetTemperature){
+        return;
+      }
+      else {
+        if (this.sensorData.humidity > this.targetHumidity) {
+          set(ref(this.database, "pump/speed"), 0);
+        }
+        if (this.sensorData.humidity < this.targetHumidity) {
+          set(ref(this.database, "servo/angle"), 0);
+        }
+      }
     },
     updateServoAngle() {
       set(ref(this.database, "servo/angle"), this.servoAngle);
@@ -249,6 +303,9 @@ export default {
         speed: this.motorSpeed,
         direction: this.motorDirection,
       });
+    },
+    updatePumpSettings() {
+      set(ref(this.database, "pump/speed"), this.pumpSpeed);
     },
     showHistoricalGraphs() {
       this.isHistoricalGraphMode = !this.isHistoricalGraphMode;
@@ -309,6 +366,7 @@ export default {
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     this.database = getDatabase(app);
     this.fetchHistoricalData();
+    this.fetchSensorData();
     setInterval(this.fetchHistoricalData, 5000);
     setInterval(this.fetchSensorData, 5000);
   },
@@ -347,6 +405,11 @@ export default {
   margin-bottom: 1rem;
 }
 .servo-control {
+  width: 45%;
+  padding: 1rem;
+}
+
+.pump-control {
   width: 45%;
   padding: 1rem;
 }
