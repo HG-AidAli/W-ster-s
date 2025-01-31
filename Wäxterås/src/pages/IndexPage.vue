@@ -198,11 +198,11 @@ export default {
       return procent + "%";
     },
     convertPumpUsageToProcent(pumpUsage) {
-      if (pumpUsage < 500) {
+      if (pumpUsage < 200) {
         return "0%";
       }
 
-      const procent = Math.round(((pumpUsage - 500) / (3000 - 500) ) * 100);
+      const procent = Math.round(((pumpUsage - 200) / (3000 - 200) ) * 100);
       return procent + "%";
     },
 
@@ -367,7 +367,7 @@ export default {
       if (this.sensorData.humidity < this.targetHumidity) {
         if (this.temperatureIsControlled == true) {
 
-          this.pumpSpeed= Math.round(Math.min(Math.max(300, pumpControlSignal), 3000));
+          this.pumpSpeed= Math.round(Math.min(Math.max(200, pumpControlSignal), 3000));
           this.humidityIsControlled = true;
 
         }
