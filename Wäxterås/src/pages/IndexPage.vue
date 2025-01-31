@@ -18,7 +18,6 @@
       <div class="sensor-data">
         <p><strong>Temperature:</strong> {{ sensorData.temperature }}°C</p>
         <p><strong>Humidity:</strong> {{ sensorData.humidity }}%</p>
-        <q-btn @click="showHistoricalGraphs">Testing functions with this button</q-btn>
         <q-btn @click="toggleChart" size="sm" color="primary">
           Show {{ isTemperatureChart ? "Humidity" : "Temperature" }} Data
         </q-btn>
@@ -65,10 +64,23 @@
           :series="chartSeries"
           class="sensor-chart"
         />
+
+        <div class="status-boxes">
+          <div class="status-box motor-speed">
+            <p>Motor Speed: {{ convertMotorUsageToProcent(motorSpeed)}}</p>
+          </div>
+          <div class="status-box servo-angle">
+            <p>Servo Angle: {{ convertServoAngleToProcent(servoAngle)}}</p>
+          </div>
+          <div class="status-box pump-speed">
+            <p>Pump Speed: {{ convertPumpUsageToProcent(pumpSpeed)}}</p>
+          </div>
+        </div>
       </div>
     </div>
 
-    <q-btn @click="toggleControlMode" size="sm" color="accent">
+
+    <q-btn @click="fixControlToggleProblems" size="sm" color="accent">
       {{ isControlMode ? "Exit Control Mode" : "Control" }}
     </q-btn>
   </q-page>
@@ -176,6 +188,32 @@ export default {
     },
   },
   methods: {
+
+    convertMotorUsageToProcent(motorUsage) {
+      if (motorUsage < 500) {
+        return "0%";
+      }
+
+      const procent = Math.round(((motorUsage - 500) / (3000 - 500) ) * 100);
+      return procent + "%";
+    },
+    convertPumpUsageToProcent(pumpUsage) {
+      if (pumpUsage < 500) {
+        return "0%";
+      }
+
+      const procent = Math.round(((pumpUsage - 500) / (3000 - 500) ) * 100);
+      return procent + "%";
+    },
+
+    convertServoAngleToProcent(ServoUsage){
+      if (ServoUsage < 0) {
+        return "0%";
+      }
+
+      const procent = Math.round(((ServoUsage) / (90) ) * 100);
+      return procent + "%";
+    },
     fetchHistoricalData() {
       const an_array = [];
       const longTermInfo = ref(this.database, "long-term-info");
@@ -222,6 +260,7 @@ export default {
       this.isTemperatureChart = !this.isTemperatureChart;
       this.updateChartSeries();
     },
+
     updateChartSeries() {
       if (this.isTemperatureChart) {
         this.chartSeries = [
@@ -312,12 +351,14 @@ export default {
           this.humidityIsControlled = false;
           this.servoAngle = Math.round(Math.min(Math.max(0, servoControlSignal), 90));
         }
+        else {
+          this.servoAngle = 90;
+        }
       }
 
       else {
 
         this.humidityIsControlled = true;
-        this.servoAngle = 0;
         this.humidityErrorSum = 0;
       }
 
@@ -355,6 +396,12 @@ export default {
         }
       }
     },
+    fixControlToggleProblems() {
+
+      this.nollifyTheMotorValues();
+      this.toggleControlMode();
+
+    },
     updateServoAngle() {
       set(ref(this.database, "servo/angle"), this.servoAngle);
     },
@@ -366,6 +413,15 @@ export default {
     },
     updatePumpSettings() {
       set(ref(this.database, "pump/speed"), this.pumpSpeed);
+    },
+    nollifyTheMotorValues(){
+
+        this.motorSpeed = 0;
+        this.pumpSpeed = 0;
+        this.servoAngle = 0;
+        set(ref(this.database, "pump/speed"), this.pumpSpeed);
+        set(ref(this.database, "motor/speed"), this.motorSpeed);
+        set(ref(this.database, "servo/angle"), this.servoAngle);
     },
     showHistoricalGraphs() {
       this.isHistoricalGraphMode = !this.isHistoricalGraphMode;
@@ -427,7 +483,7 @@ export default {
     this.database = getDatabase(app);
     this.fetchHistoricalData();
     this.fetchSensorData();
-    setInterval(this.fetchHistoricalData, 600000);
+    setInterval(this.fetchHistoricalData, 5000);
     setInterval(this.fetchSensorData, 5000);
   },
 };
@@ -495,5 +551,33 @@ export default {
 }
 .historical-data {
   margin-top: 2rem;
+}
+
+.status-boxes {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.status-box {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+}
+
+.motor-speed {
+  background-color:rgba(255, 0, 0, 0.32);
+}
+
+.servo-angle {
+  background-color: rgba(0, 0, 255, 0.224);
+}
+
+.pump-speed {
+  background-color: rgba(0, 128, 0, 0.178);
 }
 </style>
