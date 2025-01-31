@@ -1,5 +1,5 @@
 //This thing is PROBABLY functional... Fix any bug that you find
-
+#include <TimeLib.h>
 #include <Servo.h>
 #include <ESP8266WiFi.h>
 #include "FirebaseESP8266.h"
@@ -25,7 +25,9 @@ float SensorTemp;
 float SensorHum;
 
 unsigned long previousMillisFirebase = 0;
+unsigned long LongTermpreviousMillisFirebase = 0;
 const unsigned long firebaseInterval = 4000;
+const unsigned long firebaseLongTermInterval = 60000;
 
 void setup() {
   Serial.begin(115200);
@@ -106,7 +108,7 @@ void controlPump(bool riktning, int hastighet) {
   pinMode(PumpSpeed, OUTPUT);
   pinMode(PumpDir, OUTPUT);
 
-  hastighet = constrain(hastighet, 0, 3000);
+  hastighet = constrain(hastighet, 200, 3000);
 
   digitalWrite(PumpDir, riktning ? HIGH : LOW);
   analogWrite(PumpSpeed, hastighet);
@@ -122,10 +124,10 @@ void getTempHumAndSendToFirebase(){
     SensorTemp = sensor.getTemperature();
     SensorHum = sensor.getHumidity();
 
-    if (!Firebase.setFloat(firebaseData, "/enviroment/temperature", SensorTemp)) {
+    if (!Firebase.setFloat(firebaseData, "/environment/temperature", SensorTemp)) {
       Serial.println("Failed to send temperature to firebase");     
     }
-    if (!Firebase.setFloat(firebaseData, "/enviroment/humidity", SensorHum)) {
+    if (!Firebase.setFloat(firebaseData, "/environment/humidity", SensorHum)) {
       Serial.println("Failed to send humidity to firebase");     
     }
     
@@ -137,9 +139,38 @@ void getTempHumAndSendToFirebase(){
 }
 
 
+
+void logTempHumToFirebase() {
+  if (sensor.measure()) {
+    SensorTemp = sensor.getTemperature();
+    SensorHum = sensor.getHumidity();
+
+    time_t currentTime = now();
+    String monthStr = String(month(currentTime));
+    String dayStr = String(day(currentTime));
+    String hourStr = String(hour(currentTime));
+    String minuteStr = String(minute(currentTime));
+
+    String path = "/long-term-info/" + monthStr + "/" + dayStr + "/" + hourStr + "_" + minuteStr;
+
+    Firebase.setFloat(firebaseData, path + "/hum", SensorHum);
+    Firebase.setFloat(firebaseData, path + "/temp", SensorTemp);
+  } else {
+    Serial.println("Failed to fetch Sensory data from the sensors");
+  }
+}
+
+
+
 void loop() {
 
   unsigned long currentMillis = millis();
+  
+  if (currentMillis - LongTermpreviousMillisFirebase >= firebaseLongTermInterval) {
+    LongTermpreviousMillisFirebase = currentMillis;
+
+    logTempHumToFirebase();
+  }
   if (currentMillis - previousMillisFirebase >= firebaseInterval) {
     previousMillisFirebase = currentMillis;
 
@@ -151,6 +182,6 @@ void loop() {
   controlServo(fetchServoAngle());
   
   delay(300);
-
+  
   yield();
 }
