@@ -97,7 +97,7 @@ void controlMotor(bool riktning, int hastighet) {
   pinMode(MotorSpeed, OUTPUT);
   pinMode(MotorDir, OUTPUT);
 
-  hastighet = constrain(hastighet, 0, 3000);
+  hastighet = constrain(hastighet, 110, 3000);
 
   digitalWrite(MotorDir, riktning ? HIGH : LOW);
   analogWrite(MotorSpeed, hastighet);
@@ -115,7 +115,7 @@ void controlPump(bool riktning, int hastighet) {
 }
 
 void controlServo(int grader) {
-  grader = constrain(grader, 0, 180);
+  grader = constrain(grader, 0, 90);
   servot.write(grader * 2);
 }
 
@@ -128,7 +128,7 @@ void getTempHumAndSendToFirebase(){
       Serial.println("Failed to send temperature to firebase");     
     }
     if (!Firebase.setFloat(firebaseData, "/environment/humidity", SensorHum)) {
-      Serial.println("Failed to send humidity to firebase");     
+      Serial.println("Failed to send humidity to firebase");      
     }
     
   }
