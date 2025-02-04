@@ -1,31 +1,36 @@
 <template>
   <q-page>
-    <div v-if="!isControlMode">
+    <div v-if="!isControlMode" class="the_whole_thing">
       <div class="row">
-        <div class="col-6 servo-control">
+        <div class="servo-control">
           <h5>Servo Angle</h5>
           <q-slider v-model="servoAngle" :min="0" :max="90" label="Servo Angle" @change="updateServoAngle" />
         </div>
-        <div class="col-6 motor-control">
-          <h5>Motor Speed</h5>
-          <q-slider v-model="motorSpeed" :min="0" :max="3000" label="Motor Speed" @change="updateMotorSettings" />
-        </div>
-        <div class="col-6 pump-control">
+        <div class="pump-control">
           <h5>Pump Speed</h5>
           <q-slider v-model="pumpSpeed" :min="0" :max="3000" label="Pump Speed" @change="updatePumpSettings"/>
         </div>
+        <div class="motor-control">
+          <h5>Motor Speed</h5>
+          <q-slider v-model="motorSpeed" :min="0" :max="3000" label="Motor Speed" @change="updateMotorSettings" />
+        </div>
+
       </div>
       <div class="sensor-data">
         <p><strong>Temperature:</strong> {{ sensorData.temperature }}°C</p>
         <p><strong>Humidity:</strong> {{ sensorData.humidity }}%</p>
-        <q-btn @click="toggleChart" size="sm" color="primary">
+        <q-btn @click="toggleChart" size="sm" color="primary" >
           Show {{ isTemperatureChart ? "Humidity" : "Temperature" }} Data
         </q-btn>
 
-        <apexchart type="line" :options="chartOptions" :series="chartSeries" />
+        <apexchart  style="background-color:rgba(40,40,40,1);" type="line" :options="chartOptions" :series="chartSeries" />
 
         <div class="historical-data">
           <q-select
+            dark
+            rounded
+            standout
+            class="select-date"
             v-model="selectedDate"
             :options="availableDates"
             label="Select Date"
@@ -86,7 +91,18 @@
   </q-page>
 </template>
 
+
+
+
+
+
+
+
+
+
+
 <script>
+//Importerar viktiga grejer både för firebase och för att kunna rita grafer (apexchart är använd i detta fall)
 import { initializeApp, getApps } from 'firebase/app';
 import { getDatabase, ref, onValue, set } from 'firebase/database';
 import VueApexCharts from "vue3-apexcharts";
@@ -141,6 +157,8 @@ export default {
           speed: 800,
         },
       },
+      colors: ["#0DCAF0", "#20C997", "#FFC107", "#FF5733"],
+
       xaxis: {
         categories: Array.from({ length: 50}, (_, i) => i + 1),
       },
@@ -515,9 +533,20 @@ export default {
 
 
 <style>
+html, body {
+  background-color: rgba(50,50,50,1) !important;
+  color: white;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+}
+
+
 .row {
+  color :white;
   display: flex;
-  justify-content: space-between;
+  justify-content:space-around;
   margin-bottom: 1rem;
 }
 .servo-control {
@@ -525,6 +554,11 @@ export default {
   padding: 1rem;
 }
 
+.select-date {
+  background-color: rgba(50,50,50,1) !important;
+  color: rgba(255,180,80,1) !important;
+
+}
 .pump-control {
   width: 45%;
   padding: 1rem;
@@ -534,25 +568,32 @@ export default {
   padding: 1rem;
 }
 .sensor-data {
-  background: #f5f5f5;
+  background: rgba(40,40,40,1);
   padding: 2rem;
   border-radius: 8px;
   text-align: center;
   margin-top: 2rem;
   height: 400px;
 }
+
+.pump-control h5,
 .servo-control h5,
 .motor-control h5 {
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
+  text-align: center;
 }
 .q-btn {
   font-size: 0.8rem;
 }
 .historical-data {
+  background-color: rgba(50,50,50,1);
   margin-top: 2rem;
 }
 
+.historical-graphs{
+
+}
 .status-boxes {
   display: flex;
   justify-content: space-between;
@@ -565,19 +606,21 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: white;
+  color: rgb(41, 21, 21);
   font-weight: bold;
 }
-
+.select-date {
+  color:black;
+}
 .motor-speed {
-  background-color:rgba(255, 0, 0, 0.32);
+  background-color:rgba(180, 255, 80, 1);
 }
 
 .servo-angle {
-  background-color: rgba(0, 0, 255, 0.224);
+  background-color: rgba(255, 180, 80, 1);
 }
 
 .pump-speed {
-  background-color: rgba(0, 128, 0, 0.178);
+  background-color: rgba(80, 180, 255);
 }
 </style>
