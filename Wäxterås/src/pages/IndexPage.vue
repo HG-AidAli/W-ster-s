@@ -113,8 +113,8 @@ export default {
   },
   data() {
     return {
-      targetTemperature: 26,
-      targetHumidity: 30,
+      targetTemperature: 22,
+      targetHumidity: 78,
       servoAngle: 0,
       motorSpeed: 0,
       pumpSpeed: 0,
@@ -157,7 +157,7 @@ export default {
           speed: 800,
         },
       },
-      colors: ["#0DCAF0", "#20C997", "#FFC107", "#FF5733"],
+      colors: ["#A4F378", "#20C997", "#FFC107", "#FF5733"],
 
       xaxis: {
         categories: Array.from({ length: 50}, (_, i) => i + 1),
@@ -208,19 +208,19 @@ export default {
   methods: {
 
     convertMotorUsageToProcent(motorUsage) {
-      if (motorUsage < 500) {
+      if (motorUsage < 120) {
         return "0%";
       }
 
-      const procent = Math.round(((motorUsage - 500) / (3000 - 500) ) * 100);
+      const procent = Math.round(((motorUsage - 120) / (3000 - 120) ) * 100);
       return procent + "%";
     },
     convertPumpUsageToProcent(pumpUsage) {
-      if (pumpUsage < 500) {
+      if (pumpUsage < 40) {
         return "0%";
       }
 
-      const procent = Math.round(((pumpUsage - 500) / (3000 - 500) ) * 100);
+      const procent = Math.round(((pumpUsage - 40) / (300 - 40) ) * 100);
       return procent + "%";
     },
 
@@ -335,7 +335,7 @@ export default {
       if (this.sensorData.temperature > this.targetTemperature) {
         this.temperatureIsControlled = false;
         this.servoAngle = 90;
-        this.motorSpeed = Math.round(Math.min(Math.max(500, motorControlSignal), 3000));
+        this.motorSpeed = Math.round(Math.min(Math.max(120, motorControlSignal), 3000));
       } else {
         this.temperatureIsControlled = true;
         this.motorSpeed = 0;
@@ -345,10 +345,10 @@ export default {
       set(ref(this.database, "motor/speed"), this.motorSpeed);
 
 
-      const humSetPoint = 30;
-      const humKp = 1;
-      const humKi = 0.1;
-      const humKd = 0.01;
+      const humSetPoint = 78;
+      const humKp = 7;
+      const humKi = 0.7;
+      const humKd = 0.07;
       const humidityError = this.sensorData.humidity - humSetPoint;
       this.humidityErrorSum += humidityError;
       const humidityDeltaError = humidityError - this.humidityLastError;
@@ -356,9 +356,9 @@ export default {
       this.humidityLastError = humidityError;
 
       //PLEASE TUNE THE FREAKING PID CONSTS...
-      const pumpKp = 100;
-      const pumpKi = 10;
-      const pumpKd = 1;
+      const pumpKp = 1;
+      const pumpKi = 0.1;
+      const pumpKd = 0.01;
       const humidityErrorForPump = -(this.sensorData.humidity - humSetPoint);
       this.humidityErrorSumForPump += humidityErrorForPump;
       const humidityDeltaErrorForPump = humidityErrorForPump - this.humidityLastErrorForPump;
@@ -385,8 +385,8 @@ export default {
       if (this.sensorData.humidity < this.targetHumidity) {
         if (this.temperatureIsControlled == true) {
 
-          this.pumpSpeed= Math.round(Math.min(Math.max(300, pumpControlSignal), 3000));
-          this.humidityIsControlled = true;
+          this.pumpSpeed= Math.round(Math.min(Math.max(40, pumpControlSignal), 300));
+          this.humidityIsControlled = false;
 
         }
 

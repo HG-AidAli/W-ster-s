@@ -97,7 +97,17 @@ void controlMotor(bool riktning, int hastighet) {
   pinMode(MotorSpeed, OUTPUT);
   pinMode(MotorDir, OUTPUT);
 
-  hastighet = constrain(hastighet, 110, 3000);
+  if (hastighet == 0){
+    hastighet = 0;
+  }
+
+  if (hastighet != 0 && hastighet < 110){
+    hastighet = 110;
+  }
+
+  if (hastighet > 3000){
+    hastighet = 3000;
+  }
 
   digitalWrite(MotorDir, riktning ? HIGH : LOW);
   analogWrite(MotorSpeed, hastighet);
@@ -107,8 +117,17 @@ void controlPump(bool riktning, int hastighet) {
   
   pinMode(PumpSpeed, OUTPUT);
   pinMode(PumpDir, OUTPUT);
-
-  hastighet = constrain(hastighet, 200, 3000);
+  if (hastighet == 0){
+    hastighet = 0;  
+  }
+  if (hastighet != 0 && hastighet < 200){
+    hastighet = 200;
+    
+  }
+  
+  if (hastighet > 3000){
+    hastighet = 3000;
+  }
 
   digitalWrite(PumpDir, riktning ? HIGH : LOW);
   analogWrite(PumpSpeed, hastighet);
