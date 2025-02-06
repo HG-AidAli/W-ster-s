@@ -346,9 +346,9 @@ export default {
 
 
       const humSetPoint = 78;
-      const humKp = 7;
-      const humKi = 0.7;
-      const humKd = 0.07;
+      const humKp = 14;
+      const humKi = 0.14;
+      const humKd = 0.014;
       const humidityError = this.sensorData.humidity - humSetPoint;
       this.humidityErrorSum += humidityError;
       const humidityDeltaError = humidityError - this.humidityLastError;
