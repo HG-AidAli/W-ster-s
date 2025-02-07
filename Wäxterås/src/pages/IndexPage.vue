@@ -220,7 +220,7 @@ export default {
         return "0%";
       }
 
-      const procent = Math.round(((pumpUsage - 40) / (300 - 40) ) * 100);
+      const procent = Math.ceil(((pumpUsage - 39) / (300 - 40) ) * 100);
       return procent + "%";
     },
 
